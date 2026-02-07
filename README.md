@@ -62,7 +62,9 @@ The GenAI Anomaly Service is a foundational infrastructure component that:
 genai-anomaly-service/
 ├── anomaly/
 │   ├── config/              # Configuration settings
-│   │   └── settings.py      # Algorithm versions, thresholds
+│   │   └── settings.py      # Algorithm versions, thresholds, LLMOps config
+│   ├── features/            # Data source integrations
+│   │   └── llmops_reader.py # READ-ONLY LLMOps data access
 │   ├── models/              # Domain models
 │   │   ├── anomaly_record.py
 │   │   ├── baseline.py
@@ -91,7 +93,8 @@ genai-anomaly-service/
 │   ├── test_detectors.py
 │   ├── test_baselines.py
 │   ├── test_store.py
-│   └── test_api.py
+│   ├── test_api.py
+│   └── test_llmops_pull_only.py  # LLMOps integration compliance tests
 ├── pyproject.toml
 └── README.md
 ```
@@ -235,6 +238,21 @@ Key settings in `anomaly/config/settings.py`:
 | `z_score_threshold` | `2.0` | Standard deviations for anomaly |
 | `min_confidence` | `0.5` | Minimum confidence to report |
 | `storage_path` | `./data/anomalies` | File storage location |
+
+### LLMOps Integration Settings
+
+| Environment Variable | Default | Description |
+|---------------------|---------|-------------|
+| `LLMOPS_ENABLED` | `true` | Enable/disable LLMOps integration |
+| `LLMOPS_BASE_URL` | `http://localhost:8100` | LLMOps platform URL |
+| `LLMOPS_TIMEOUT_MS` | `1000` | Request timeout in ms (≤1s) |
+| `LLMOPS_DATA_DIR` | (none) | Path to JSONL files for offline mode |
+
+> ⚠️ **LLMOps Integration Rules**:
+> - **READ-ONLY**: Only HTTP GET requests are allowed
+> - **Fail-Open**: Any error returns empty data (no crashes)
+> - **No Retries**: Fail fast with ≤1s timeout
+> - **Pull-Only**: Anomaly service pulls from LLMOps, never pushes
 
 ## License
 

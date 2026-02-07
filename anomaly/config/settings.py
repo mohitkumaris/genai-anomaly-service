@@ -1,5 +1,6 @@
 """GenAI Anomaly Service configuration settings."""
 
+import os
 from dataclasses import dataclass, field
 from datetime import timedelta
 from enum import Enum
@@ -54,6 +55,16 @@ class Settings:
     service_name: str = "genai-anomaly-service"
     service_version: str = "0.1.0"
 
+    # LLMOps integration (READ-ONLY, PULL-ONLY)
+    # DESIGN RULES:
+    # - HTTP GET only (no writes)
+    # - Fail-open: return empty on any error
+    # - Timeout ≤1s, no retries
+    llmops_enabled: bool = True
+    llmops_base_url: str = "http://localhost:8100"
+    llmops_timeout_ms: int = 1000  # ≤1 second, no retries
+    llmops_data_dir: str | None = None  # For file-based reading
+
     # Time window defaults
     time_window: TimeWindowConfig = field(default_factory=TimeWindowConfig)
 
@@ -71,6 +82,20 @@ class Settings:
     api_prefix: str = "/api/v1"
     debug: bool = False
 
+    @classmethod
+    def from_env(cls) -> "Settings":
+        """Load settings from environment variables."""
+        return cls(
+            algorithm_version=os.getenv("ALGORITHM_VERSION", "1.0.0"),
+            llmops_enabled=os.getenv("LLMOPS_ENABLED", "true").lower() == "true",
+            llmops_base_url=os.getenv("LLMOPS_BASE_URL", "http://localhost:8100"),
+            llmops_timeout_ms=int(os.getenv("LLMOPS_TIMEOUT_MS", "1000")),
+            llmops_data_dir=os.getenv("LLMOPS_DATA_DIR"),
+            storage_path=os.getenv("STORAGE_PATH", "./data/anomalies"),
+            enable_file_storage=os.getenv("ENABLE_FILE_STORAGE", "true").lower() == "true",
+            debug=os.getenv("DEBUG", "false").lower() == "true",
+        )
+
 
 # Global settings instance
 _settings: Settings | None = None
@@ -80,7 +105,7 @@ def get_settings() -> Settings:
     """Get or create the global settings instance."""
     global _settings
     if _settings is None:
-        _settings = Settings()
+        _settings = Settings.from_env()
     return _settings
 
 
@@ -88,3 +113,9 @@ def configure(settings: Settings) -> None:
     """Configure the global settings (primarily for testing)."""
     global _settings
     _settings = settings
+
+
+def reset_settings() -> None:
+    """Reset settings to None (for testing)."""
+    global _settings
+    _settings = None
